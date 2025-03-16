@@ -24,10 +24,13 @@ func main() {
 
 	fmt.Printf("Value of a not defined texture2d: %v\n", Sprite{}.Texture)
 
-	fmt.Println(NewArchetype([]ComponentID{movementID, healthID}))
-	fmt.Println(NewArchetype([]ComponentID{positionID, spriteID, movementID, healthID}))
+	fmt.Println(NewArchetype(movementID, healthID))
+	fmt.Println(NewArchetype(positionID, spriteID, movementID, healthID))
 
-	e1 := GetMaskFromComponents([]ComponentID{positionID, spriteID, movementID, healthID})
+	e1 := GetMaskFromComponents(positionID, spriteID, movementID, healthID)
 	fmt.Println(uint32(e1))
-	fmt.Println(GetComponentsFromMask(uint32(e1)))
+	fmt.Println(GetComponentsFromMask(e1))
+
+	// (uint32(mask) & uint32(component)) == uint32(component)
+
 }

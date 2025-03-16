@@ -151,7 +151,7 @@ func (a *Archetype) RemoveEntity(entity Entity) {
 type World struct {
 	nextEntityID Entity
 	state        State
-	entityIndex  map[Entity]ComponentID
+	entityMask   map[Entity]ComponentID
 	archetype    map[ComponentID]*Archetype
 }
 
@@ -159,7 +159,7 @@ func NewWorld() *World {
 	return &World{
 		nextEntityID: 1,
 		state:        PAUSE,
-		entityIndex:  make(map[Entity]ComponentID),
+		entityMask:   make(map[Entity]ComponentID),
 		archetype:    make(map[ComponentID]*Archetype),
 	}
 }
@@ -176,21 +176,20 @@ func (w *World) CreateEntity(components ...ComponentID) (entity Entity) {
 		w.archetype[mask] = newArchetype
 	}
 
-	w.entityIndex[entity] = mask
+	w.entityMask[entity] = mask
 	archetype.AddEntity(entity)
 	return
 }
 
 func (w *World) AddComponent(entity Entity, component ComponentID) {
-
-	mask, ok := w.entityIndex[entity]
+	mask, ok := w.entityMask[entity]
 	if !ok {
 		// Si no existe, la creamos.
 		w.CreateEntity(component)
 		return
 	}
-	oldArchitecture := w.archetype[mask]
-	oldArchitecture.RemoveEntity(entity)
+	oldArchetype := w.archetype[mask]
+	oldArchetype.RemoveEntity(entity)
 
 	components := GetComponentsFromMask(mask & component)
 	w.CreateEntity(components...)
@@ -199,16 +198,38 @@ func (w *World) AddComponent(entity Entity, component ComponentID) {
 }
 
 func (w *World) RemoveComponent(entity Entity, component ComponentID) {
-	mask, ok := w.entityIndex[entity]
+	mask, ok := w.entityMask[entity]
 	if !ok || mask&component == 0 {
 		return
 	}
 
-	oldArchitecture := w.archetype[mask]
-	oldArchitecture.RemoveEntity(entity)
+	oldArchetype := w.archetype[mask]
+	oldArchetype.RemoveEntity(entity)
 
 	mask = mask ^ component
-	w.entityIndex[entity] = mask
+	w.entityMask[entity] = mask
 	w.nextEntityID--
 	w.CreateEntity(mask)
+}
+
+func (w *World) RemoveEntity(entity Entity) {
+	mask, ok := w.entityMask[entity]
+	if !ok {
+		return
+	}
+
+	entityArchetype := w.archetype[mask]
+	entityArchetype.RemoveEntity(entity)
+
+	delete(w.entityMask, entity)
+	w.nextEntityID--
+
+}
+
+func (w *World) GetComponent(entity Entity, component ComponentID) bool {
+	mask, ok := w.entityMask[entity]
+	if !ok {
+		return false
+	}
+	return (uint32(mask) & uint32(component)) == uint32(component)
 }
