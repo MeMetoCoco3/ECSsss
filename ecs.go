@@ -97,33 +97,6 @@ type Archetype struct {
 	Entities Entities
 }
 
-func GetMaskFromComponents(componentsID ...ComponentID) ComponentID {
-	var mask ComponentID
-	for i := range len(componentsID) {
-		mask |= componentsID[i]
-	}
-	return mask
-}
-
-func GetComponentsFromMask(mask ComponentID) (components []ComponentID) {
-	components = make([]ComponentID, 32)
-	count := 0
-	bitValue := 1
-	for mask != 0 {
-		fmt.Printf("Printed from ECS. Mask: %d\n", mask)
-		bit := mask & 1
-		if bit != 0 {
-			fmt.Printf("Printed from ECS: %d\n", bit)
-			components[count] = ComponentID(bitValue)
-			count++
-		}
-		bitValue = bitValue << 1
-		mask = mask >> 1
-	}
-
-	return components[:count]
-}
-
 func NewArchetype(componentsID ...ComponentID) *Archetype {
 	mask := GetMaskFromComponents(componentsID...)
 	return &Archetype{
@@ -152,7 +125,7 @@ type World struct {
 	nextEntityID Entity
 	state        State
 	entityMask   map[Entity]ComponentID
-	archetype    map[ComponentID]*Archetype
+	archetypes   map[ComponentID]*Archetype
 }
 
 func NewWorld() *World {
@@ -160,7 +133,7 @@ func NewWorld() *World {
 		nextEntityID: 1,
 		state:        PAUSE,
 		entityMask:   make(map[Entity]ComponentID),
-		archetype:    make(map[ComponentID]*Archetype),
+		archetypes:   make(map[ComponentID]*Archetype),
 	}
 }
 
@@ -170,10 +143,10 @@ func (w *World) CreateEntity(components ...ComponentID) (entity Entity) {
 
 	// Build archetype if not exists
 	mask := GetMaskFromComponents(components...)
-	archetype, exists := w.archetype[mask]
+	archetype, exists := w.archetypes[mask]
 	if !exists {
 		newArchetype := NewArchetype(components...)
-		w.archetype[mask] = newArchetype
+		w.archetypes[mask] = newArchetype
 	}
 
 	w.entityMask[entity] = mask
@@ -188,7 +161,7 @@ func (w *World) AddComponent(entity Entity, component ComponentID) {
 		w.CreateEntity(component)
 		return
 	}
-	oldArchetype := w.archetype[mask]
+	oldArchetype := w.archetypes[mask]
 	oldArchetype.RemoveEntity(entity)
 
 	components := GetComponentsFromMask(mask & component)
@@ -203,7 +176,7 @@ func (w *World) RemoveComponent(entity Entity, component ComponentID) {
 		return
 	}
 
-	oldArchetype := w.archetype[mask]
+	oldArchetype := w.archetypes[mask]
 	oldArchetype.RemoveEntity(entity)
 
 	mask = mask ^ component
@@ -218,7 +191,7 @@ func (w *World) RemoveEntity(entity Entity) {
 		return
 	}
 
-	entityArchetype := w.archetype[mask]
+	entityArchetype := w.archetypes[mask]
 	entityArchetype.RemoveEntity(entity)
 
 	delete(w.entityMask, entity)
@@ -226,10 +199,42 @@ func (w *World) RemoveEntity(entity Entity) {
 
 }
 
-func (w *World) GetComponent(entity Entity, component ComponentID) bool {
+func (w *World) HasComponent(entity Entity, component ComponentID) bool {
 	mask, ok := w.entityMask[entity]
 	if !ok {
 		return false
 	}
-	return (uint32(mask) & uint32(component)) == uint32(component)
+
+	return hasComponents(mask, component)
+}
+
+func (w *World) HasComponents(entity Entity, components ...ComponentID) bool {
+	mask, ok := w.entityMask[entity]
+	if !ok {
+		return false
+	}
+	var componentsMask ComponentID
+
+	for i := range components {
+		componentsMask |= components[i]
+	}
+
+	return hasComponents(mask, componentsMask)
+}
+
+func hasComponents(mask, componentsMask ComponentID) bool {
+	return (uint32(mask) & uint32(componentsMask)) == uint32(componentsMask)
+}
+
+func (w *World) Query(components ...ComponentID) []*Archetype {
+	var result []*Archetype
+	mask := GetMaskFromComponents(components...)
+
+	for k, v := range w.archetypes {
+		if hasComponents(mask, k) {
+			result = append(result, v)
+		}
+	}
+
+	return result
 }
