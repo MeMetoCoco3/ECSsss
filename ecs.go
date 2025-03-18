@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
@@ -20,6 +18,24 @@ const (
 	aliveID
 )
 
+/*
+	func GetComponent(id ComponentID) Component {
+		switch id {
+		case positionID:
+			return &Position{}
+		case spriteID:
+			return &Sprite{}
+		case movementID:
+			return &Movement{}
+		case healthID:
+			return &Health{}
+		case aliveID:
+			return &Alive{}
+		default:
+			return nil
+		}
+	}
+*/
 const (
 	PAUSE State = iota
 	PLAY
@@ -93,15 +109,22 @@ func (c *Alive) Type() ComponentID {
 
 // ===ARCHETYPE===
 type Archetype struct {
-	Mask     ComponentID
-	Entities Entities
+	Mask          ComponentID
+	Entities      Entities
+	Components    map[ComponentID][]interface{}
+	EntityToIndex map[Entity]int
 }
 
 func NewArchetype(componentsID ...ComponentID) *Archetype {
+	componentMap := make(map[ComponentID][]interface{})
+	for _, currComp := range componentsID {
+		componentMap[currComp] = make([]interface{}, 0)
+	}
 	mask := GetMaskFromComponents(componentsID...)
 	return &Archetype{
-		Mask:     mask,
-		Entities: Entities{},
+		Mask:       mask,
+		Entities:   Entities{},
+		Components: componentMap,
 	}
 }
 
@@ -222,10 +245,6 @@ func (w *World) HasComponents(entity Entity, components ...ComponentID) bool {
 	return hasComponents(mask, componentsMask)
 }
 
-func hasComponents(mask, componentsMask ComponentID) bool {
-	return (uint32(mask) & uint32(componentsMask)) == uint32(componentsMask)
-}
-
 func (w *World) Query(components ...ComponentID) []*Archetype {
 	var result []*Archetype
 	mask := GetMaskFromComponents(components...)
@@ -237,4 +256,55 @@ func (w *World) Query(components ...ComponentID) []*Archetype {
 	}
 
 	return result
+}
+
+// ===BASE SYSTEM===
+
+type BaseSystem struct {
+	World *World
+}
+
+func (s *BaseSystem) SetWorld(w World) {
+	s.World = &w
+}
+
+type System interface {
+	Update(dt float32)
+	SetWorld(w *World)
+}
+
+func NewSystem[T System](w *World, s T) *T {
+	s.SetWorld(w)
+	return &s
+}
+
+// ===SYSTEM===
+
+type MovementSystem struct {
+	BaseSystem
+	world *World
+}
+
+func (s *MovementSystem) Update(dt float32) {
+	//...
+}
+
+type RenderingSystem struct {
+	BaseSystem
+	world *World
+}
+
+func (s *RenderingSystem) Update(dt float32) {
+	s.Draw()
+}
+
+func (s *RenderingSystem) Draw() {
+	archetypes := s.World.Query(positionID, spriteID)
+	for archIdx := range archetypes {
+		entities := archetypes[archIdx].Entities
+		for entIdx := range entities {
+			entities[entIdx].Draw()
+
+		}
+	}
 }

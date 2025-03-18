@@ -30,3 +30,7 @@ func GetComponentsFromMask(mask ComponentID) (components []ComponentID) {
 
 	return components[:count]
 }
+
+func hasComponents(mask, componentsMask ComponentID) bool {
+	return (uint32(mask) & uint32(componentsMask)) == uint32(componentsMask)
+}
