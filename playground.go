@@ -7,7 +7,7 @@ import (
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
-func main() {
+func moin() {
 	/*
 		for i := ArchetypeID(1); i <= 2048; i = i << 1 {
 

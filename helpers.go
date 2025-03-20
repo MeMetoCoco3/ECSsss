@@ -15,7 +15,7 @@ func GetMaskFromComponents(componentsID ...ComponentID) ComponentID {
 }
 
 // HACK: Add components here as needed.
-func GetComponentFromID(id ComponentID) interface{} {
+func GetComponentFromID(id ComponentID) any {
 	switch id {
 	case positionID:
 		return make([]Position, 0)

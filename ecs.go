@@ -2,6 +2,7 @@ package main
 
 import (
 	rl "github.com/gen2brain/raylib-go/raylib"
+	"log"
 )
 
 // An entity is a index of a object in the whole world.
@@ -92,23 +93,26 @@ func (c *Alive) Type() ComponentID {
 type Archetype struct {
 	Mask          ComponentID
 	Entities      []Entity
-	Components    map[ComponentID]interface{}
+	Components    map[ComponentID]any
 	EntityToIndex map[Entity]int
 }
 
 func NewArchetype(componentsID ...ComponentID) *Archetype {
 	archetype := &Archetype{
-		Mask:       GetMaskFromComponents(componentsID...),
-		Entities:   []Entity{},
-		Components: make(map[ComponentID]interface{}),
+		Mask:          GetMaskFromComponents(componentsID...),
+		Entities:      make([]Entity, 0),
+		Components:    make(map[ComponentID]any),
+		EntityToIndex: make(map[Entity]int),
 	}
 	for _, currComp := range componentsID {
 		archetype.Components[currComp] = GetComponentFromID(currComp)
 	}
+	log.Printf("(-)COMPONENTS: %v \n", archetype.Components)
 	return archetype
 }
 
-func (a *Archetype) AddEntity(entity Entity, components map[ComponentID]interface{}) (idx int) {
+func (a *Archetype) AddEntity(entity Entity, components map[ComponentID]any) (idx int) {
+	log.Printf("(-)Adding entity n: %d\n", entity)
 	idx = len(a.Entities)
 	// INFO: Maybe better use commented line instead of append()
 	//	    a.Entities[idx] = entity
@@ -137,9 +141,8 @@ func (a *Archetype) AddEntity(entity Entity, components map[ComponentID]interfac
 			continue
 		}
 	}
-
 	a.EntityToIndex[entity] = idx
-	return idx
+	return
 }
 
 func (a *Archetype) RemoveEntity(entity Entity) {
@@ -223,27 +226,31 @@ type World struct {
 
 func NewWorld() *World {
 	return &World{
-		nextEntityID: 1,
+		nextEntityID: 0,
 		state:        PAUSE,
 		entityMask:   make(map[Entity]ComponentID),
 		archetypes:   make(map[ComponentID]*Archetype),
 	}
 }
 
-func (w *World) CreateEntity(components map[ComponentID]interface{}) (entity Entity) {
+func (w *World) CreateEntity(components map[ComponentID]any) (entity Entity) {
 	entity = w.nextEntityID
 	w.nextEntityID++
 
 	var mask ComponentID
-	for k, _ := range components {
+	var compList []ComponentID
+	for k := range components {
 		mask |= GetMaskFromComponents(k)
+		compList = append(compList, k)
 	}
 
 	// Build archetype if not exists
 	archetype, exists := w.archetypes[mask]
 	if !exists {
-		newArchetype := NewArchetype(mask)
+		newArchetype := NewArchetype(compList...)
 		w.archetypes[mask] = newArchetype
+		archetype = newArchetype
+
 	}
 
 	w.entityMask[entity] = mask
@@ -251,7 +258,7 @@ func (w *World) CreateEntity(components map[ComponentID]interface{}) (entity Ent
 	return
 }
 
-func (w *World) AddComponent(entity Entity, components map[ComponentID]interface{}) {
+func (w *World) AddComponent(entity Entity, components map[ComponentID]any) {
 	mask, ok := w.entityMask[entity]
 	if !ok {
 		// Si no existe, la creamos.
@@ -294,7 +301,7 @@ func (w *World) RemoveComponent(entity Entity, component ComponentID) {
 		return
 	}
 
-	var components map[ComponentID]interface{}
+	components := make(map[ComponentID]any)
 	oldArchetype := w.archetypes[mask]
 	idx := oldArchetype.EntityToIndex[entity]
 
@@ -387,17 +394,17 @@ type BaseSystem struct {
 	World *World
 }
 
-func (s *BaseSystem) SetWorld(w World) {
-	s.World = &w
+func (s *BaseSystem) setWorld(w *World) {
+	s.World = w
 }
 
 type System interface {
 	Update(dt float32)
-	SetWorld(w *World)
+	setWorld(w *World)
 }
 
 func NewSystem[T System](w *World, s T) *T {
-	s.SetWorld(w)
+	s.setWorld(w)
 	return &s
 }
 
@@ -408,7 +415,6 @@ func NewSystem[T System](w *World, s T) *T {
 
 type MovementSystem struct {
 	BaseSystem
-	world *World
 }
 
 func (s *MovementSystem) Update(dt float32) {
@@ -417,7 +423,6 @@ func (s *MovementSystem) Update(dt float32) {
 
 type RenderingSystem struct {
 	BaseSystem
-	world *World
 }
 
 func (s *RenderingSystem) Update(dt float32) {
@@ -428,9 +433,13 @@ func (s *RenderingSystem) Draw() {
 	archetypes := s.World.Query(positionID, spriteID)
 	for archIdx := range archetypes {
 		entities := archetypes[archIdx].Entities
-		for entIdx := range entities {
-			entities[entIdx].Draw()
+		position := archetypes[archIdx].Components[positionID].([]Position)
+		sprite := archetypes[archIdx].Components[spriteID].([]Sprite)
 
+		for entIdx := range entities {
+			entityID := entities[entIdx]
+			log.Printf("(-)Drawing Entity: %d\n", entityID)
+			sprite[entityID].Draw(position[entityID].X, position[entityID].Y)
 		}
 	}
 }
