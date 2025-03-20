@@ -6,7 +6,6 @@ import (
 
 // An entity is a index of a object in the whole world.
 type Entity uint32
-type Entities []Entity
 type ComponentID uint32
 type State uint32
 
@@ -18,24 +17,6 @@ const (
 	aliveID
 )
 
-/*
-	func GetComponent(id ComponentID) Component {
-		switch id {
-		case positionID:
-			return &Position{}
-		case spriteID:
-			return &Sprite{}
-		case movementID:
-			return &Movement{}
-		case healthID:
-			return &Health{}
-		case aliveID:
-			return &Alive{}
-		default:
-			return nil
-		}
-	}
-*/
 const (
 	PAUSE State = iota
 	PLAY
@@ -98,7 +79,7 @@ func (c *Health) Type() ComponentID {
 	return healthID
 }
 
-// +++++++++++
+// +++++++++++/
 type Alive struct {
 	IsAlive bool
 }
@@ -110,37 +91,126 @@ func (c *Alive) Type() ComponentID {
 // ===ARCHETYPE===
 type Archetype struct {
 	Mask          ComponentID
-	Entities      Entities
-	Components    map[ComponentID][]interface{}
+	Entities      []Entity
+	Components    map[ComponentID]interface{}
 	EntityToIndex map[Entity]int
 }
 
 func NewArchetype(componentsID ...ComponentID) *Archetype {
-	componentMap := make(map[ComponentID][]interface{})
+	archetype := &Archetype{
+		Mask:       GetMaskFromComponents(componentsID...),
+		Entities:   []Entity{},
+		Components: make(map[ComponentID]interface{}),
+	}
 	for _, currComp := range componentsID {
-		componentMap[currComp] = make([]interface{}, 0)
+		archetype.Components[currComp] = GetComponentFromID(currComp)
 	}
-	mask := GetMaskFromComponents(componentsID...)
-	return &Archetype{
-		Mask:       mask,
-		Entities:   Entities{},
-		Components: componentMap,
-	}
+	return archetype
 }
 
-func (a *Archetype) AddEntity(entity Entity) (idx int) {
-	idx = len(a.Entities) - 1
-	a.Entities[idx] = entity
-	return
+func (a *Archetype) AddEntity(entity Entity, components map[ComponentID]interface{}) (idx int) {
+	idx = len(a.Entities)
+	// INFO: Maybe better use commented line instead of append()
+	//	    a.Entities[idx] = entity
+	a.Entities = append(a.Entities, entity)
+
+	for k, v := range components {
+		switch k {
+
+		// HACK: Add components here as needed.
+		case positionID:
+			positions := a.Components[k].([]Position)
+			a.Components[k] = append(positions, v.(Position))
+		case spriteID:
+			sprites := a.Components[k].([]Sprite)
+			a.Components[k] = append(sprites, v.(Sprite))
+		case movementID:
+			movements := a.Components[k].([]Movement)
+			a.Components[k] = append(movements, v.(Movement))
+		case healthID:
+			health := a.Components[k].([]Health)
+			a.Components[k] = append(health, v.(Health))
+		case aliveID:
+			alives := a.Components[k].([]Alive)
+			a.Components[k] = append(alives, v.(Alive))
+		default:
+			continue
+		}
+	}
+
+	a.EntityToIndex[entity] = idx
+	return idx
 }
 
 func (a *Archetype) RemoveEntity(entity Entity) {
-	if entity < 0 || int(entity) >= len(a.Entities) {
+	idx, exists := a.EntityToIndex[entity]
+	if !exists || idx < 0 || idx >= len(a.Entities) {
 		return
 	}
-	lastIndex := len(a.Entities) - 1
-	a.Entities[entity] = a.Entities[lastIndex]
-	a.Entities = a.Entities[:lastIndex]
+
+	lastIdx := len(a.Entities) - 1
+
+	// Si no es la ultima, cogemos la ultima entidad y la swapeamos con la que
+	// queremos eliminar.
+	if idx != lastIdx {
+		lastEntity := a.Entities[lastIdx]
+		a.Entities[idx] = lastEntity
+		a.EntityToIndex[lastEntity] = idx
+
+		for k, v := range a.Components {
+			// HACK: Add components here as needed.
+			switch k {
+			case positionID:
+				components := v.([]Position)
+				components[idx] = components[lastIdx]
+				a.Components[k] = components[:lastIdx]
+			case spriteID:
+				components := v.([]Sprite)
+				components[idx] = components[lastIdx]
+				a.Components[k] = components[:lastIdx]
+			case movementID:
+				components := v.([]Movement)
+				components[idx] = components[lastIdx]
+				a.Components[k] = components[:lastIdx]
+			case healthID:
+				components := v.([]Health)
+				components[idx] = components[lastIdx]
+				a.Components[k] = components[:lastIdx]
+			case aliveID:
+				components := v.([]Alive)
+				components[idx] = components[lastIdx]
+				a.Components[k] = components[:lastIdx]
+			default:
+				continue
+			}
+		}
+	} else {
+		for k, v := range a.Components {
+
+			// HACK: Add components here as needed.
+			switch k {
+			case positionID:
+				components := v.([]Position)
+				a.Components[k] = components[:lastIdx]
+			case spriteID:
+				components := v.([]Sprite)
+				a.Components[k] = components[:lastIdx]
+			case movementID:
+				components := v.([]Movement)
+				a.Components[k] = components[:lastIdx]
+			case healthID:
+				components := v.([]Health)
+				a.Components[k] = components[:lastIdx]
+			case aliveID:
+				components := v.([]Alive)
+				a.Components[k] = components[:lastIdx]
+			default:
+				continue
+			}
+		}
+	}
+	a.Entities = a.Entities[:lastIdx]
+	delete(a.EntityToIndex, entity)
 }
 
 // ===WORLD===
@@ -160,36 +230,61 @@ func NewWorld() *World {
 	}
 }
 
-func (w *World) CreateEntity(components ...ComponentID) (entity Entity) {
+func (w *World) CreateEntity(components map[ComponentID]interface{}) (entity Entity) {
 	entity = w.nextEntityID
 	w.nextEntityID++
 
+	var mask ComponentID
+	for k, _ := range components {
+		mask |= GetMaskFromComponents(k)
+	}
+
 	// Build archetype if not exists
-	mask := GetMaskFromComponents(components...)
 	archetype, exists := w.archetypes[mask]
 	if !exists {
-		newArchetype := NewArchetype(components...)
+		newArchetype := NewArchetype(mask)
 		w.archetypes[mask] = newArchetype
 	}
 
 	w.entityMask[entity] = mask
-	archetype.AddEntity(entity)
+	archetype.AddEntity(entity, components)
 	return
 }
 
-func (w *World) AddComponent(entity Entity, component ComponentID) {
+func (w *World) AddComponent(entity Entity, components map[ComponentID]interface{}) {
 	mask, ok := w.entityMask[entity]
 	if !ok {
 		// Si no existe, la creamos.
-		w.CreateEntity(component)
+		w.CreateEntity(components)
 		return
 	}
 	oldArchetype := w.archetypes[mask]
+	idx := oldArchetype.EntityToIndex[entity]
+
+	for k, v := range oldArchetype.Components {
+		// HACK: Add components here as needed.
+		switch k {
+		case positionID:
+			component := v.([]Position)[idx]
+			components[k] = component
+		case spriteID:
+			component := v.([]Sprite)[idx]
+			components[k] = component
+		case movementID:
+			component := v.([]Movement)[idx]
+			components[k] = component
+		case healthID:
+			component := v.([]Health)[idx]
+			components[k] = component
+		case aliveID:
+			component := v.([]Alive)[idx]
+			components[k] = component
+		default:
+			continue
+		}
+	}
+	w.CreateEntity(components)
 	oldArchetype.RemoveEntity(entity)
-
-	components := GetComponentsFromMask(mask & component)
-	w.CreateEntity(components...)
-
 	w.nextEntityID--
 }
 
@@ -199,13 +294,41 @@ func (w *World) RemoveComponent(entity Entity, component ComponentID) {
 		return
 	}
 
+	var components map[ComponentID]interface{}
 	oldArchetype := w.archetypes[mask]
+	idx := oldArchetype.EntityToIndex[entity]
+
+	for k, v := range oldArchetype.Components {
+		if k == component {
+			continue
+		}
+		// HACK: Add components here as needed.
+		switch k {
+		case positionID:
+			component := v.([]Position)[idx]
+			components[k] = component
+		case spriteID:
+			component := v.([]Sprite)[idx]
+			components[k] = component
+		case movementID:
+			component := v.([]Movement)[idx]
+			components[k] = component
+		case healthID:
+			component := v.([]Health)[idx]
+			components[k] = component
+		case aliveID:
+			component := v.([]Alive)[idx]
+			components[k] = component
+		default:
+			continue
+		}
+	}
 	oldArchetype.RemoveEntity(entity)
 
 	mask = mask ^ component
 	w.entityMask[entity] = mask
 	w.nextEntityID--
-	w.CreateEntity(mask)
+	w.CreateEntity(components)
 }
 
 func (w *World) RemoveEntity(entity Entity) {
@@ -279,6 +402,9 @@ func NewSystem[T System](w *World, s T) *T {
 }
 
 // ===SYSTEM===
+// Los sistemas son la funcionalidad de los componentes , cada arquetipo guardara en una array componentes independientemente
+// estos componentes estaran alineados con su correspondiente entidas gracias a la array de entidades del arquetipo.
+// WARN: Cuando trabajamos con el field mask, lo lamamos componentID, pero realmente es el conjunto de varios formando una mascara, cambiar el tipo.
 
 type MovementSystem struct {
 	BaseSystem

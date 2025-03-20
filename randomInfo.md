@@ -9,7 +9,21 @@ PERO lo que de verdad mola es que podemos conseguir lo mismo asi (sorted in plac
     sort.Sort(arr, func(i,j int)bool{arr[i]<arr[j]})
     fmt.Printf("%T", arr[0]) // prints: int32
 ```
+##### Interfaces
+- Problema: Como inicializar arrays de Componentes con una funcion.
+El problema aparece cuando decimos que queremos devolver una interfaz y lo que vamos a devolver es un slice.
+Golang no convierte automaticamente Slices de un datatype a slices de interfaces.
+La solucion es decir que devolvemos una unica interfaz.
+```go
+// Bad!!
+func GetComponentFromID(id ComponentID) []interface{} {
+	return make([]Position, 0)
 
+// Good!!
+func GetComponentFromID(id ComponentID) interface{} {
+	return make([]Position, 0)
+
+```
 
 
 

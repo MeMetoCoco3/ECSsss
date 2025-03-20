@@ -14,6 +14,24 @@ func GetMaskFromComponents(componentsID ...ComponentID) ComponentID {
 	return mask
 }
 
+// HACK: Add components here as needed.
+func GetComponentFromID(id ComponentID) interface{} {
+	switch id {
+	case positionID:
+		return make([]Position, 0)
+	case spriteID:
+		return make([]Sprite, 0)
+	case movementID:
+		return make([]Movement, 0)
+	case healthID:
+		return make([]Health, 0)
+	case aliveID:
+		return make([]Alive, 0)
+	default:
+		return nil
+	}
+}
+
 func GetComponentsFromMask(mask ComponentID) (components []ComponentID) {
 	components = make([]ComponentID, 32)
 	count := 0
