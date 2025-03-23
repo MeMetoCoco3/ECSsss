@@ -16,6 +16,7 @@ const (
 	movementID
 	healthID
 	aliveID
+	animationID
 )
 
 const (
@@ -51,7 +52,6 @@ func (c *Sprite) Type() ComponentID {
 	return spriteID
 }
 func (c *Sprite) Draw(x, y float32) {
-	// Texture is not declared, we draw a rectangle
 	if c.Texture.ID == 0 {
 		rl.DrawRectangle(int32(x), int32(y), int32(c.Width), int32(c.Height), c.Color)
 		return
@@ -87,6 +87,73 @@ type Alive struct {
 
 func (c *Alive) Type() ComponentID {
 	return aliveID
+}
+
+// +++++++++++/
+type AnimationType int
+type AnimationDirection int
+
+const (
+	REPEATING AnimationType = iota
+	ONESHOT
+)
+const (
+	LEFT  AnimationDirection = -1
+	RIGHT AnimationDirection = 1
+)
+
+type Animation struct {
+	Sprite          Sprite
+	First           int
+	Last            int
+	Current         int
+	NumFramesPerRow int
+	SizeTile        int
+	XPad            int
+	YPad            int
+	XOffset         int
+	YOffset         int
+	Direction       AnimationDirection
+	Type            AnimationType
+	Speed           float32
+	Duration_left   float32
+}
+
+func (c *Animation) Draw(x, y float32) {
+	log.Println("DRAWING")
+	if c.Duration_left <= 0 {
+		c.Duration_left = c.Speed
+		c.Current++
+
+		if c.Current > c.Last {
+			switch c.Type {
+			case REPEATING:
+				c.Current = c.First
+				break
+			case ONESHOT:
+				c.Current = c.Last
+				break
+			}
+		}
+	}
+
+	rl.DrawTexturePro(
+		c.Sprite.Texture,
+		c.AnimationFrame(c.NumFramesPerRow, c.SizeTile, c.XPad, c.YPad, c.XOffset, c.YOffset),
+		rl.Rectangle{x, y, 128.0, 128.0},
+		rl.Vector2{0.0, 0.0}, 0.0, rl.White)
+
+}
+
+func (c *Animation) AnimationFrame(numFramesPerRow, sizeTile, xPad, yPad, xOffset, yOffset int) rl.Rectangle {
+	x := int((c.Current % numFramesPerRow) * (sizeTile + xPad))
+	y := int((c.Current / numFramesPerRow) * (sizeTile + yPad))
+	return rl.Rectangle{
+		X:      float32(x + xOffset),
+		Y:      float32(y + yOffset),
+		Width:  float32(sizeTile),
+		Height: float32(sizeTile),
+	}
 }
 
 // ===ARCHETYPE===
@@ -137,6 +204,9 @@ func (a *Archetype) AddEntity(entity Entity, components map[ComponentID]any) (id
 		case aliveID:
 			alives := a.Components[k].([]Alive)
 			a.Components[k] = append(alives, v.(Alive))
+		case animationID:
+			animations := a.Components[k].([]Animation)
+			a.Components[k] = append(animations, v.(Animation))
 		default:
 			continue
 		}
@@ -207,6 +277,10 @@ func (a *Archetype) RemoveEntity(entity Entity) {
 			case aliveID:
 				components := v.([]Alive)
 				a.Components[k] = components[:lastIdx]
+
+			case animationID:
+				components := v.([]Animation)
+				a.Components[k] = components[:lastIdx]
 			default:
 				continue
 			}
@@ -258,6 +332,7 @@ func (w *World) CreateEntity(components map[ComponentID]any) (entity Entity) {
 	return
 }
 
+// ...
 func (w *World) AddComponent(entity Entity, components map[ComponentID]any) {
 	mask, ok := w.entityMask[entity]
 	if !ok {
@@ -326,6 +401,10 @@ func (w *World) RemoveComponent(entity Entity, component ComponentID) {
 		case aliveID:
 			component := v.([]Alive)[idx]
 			components[k] = component
+
+		case animationID:
+			component := v.([]Animation)[idx]
+			components[k] = component
 		default:
 			continue
 		}
@@ -352,6 +431,7 @@ func (w *World) RemoveEntity(entity Entity) {
 
 }
 
+// ...
 func (w *World) HasComponent(entity Entity, component ComponentID) bool {
 	mask, ok := w.entityMask[entity]
 	if !ok {
@@ -421,25 +501,46 @@ func (s *MovementSystem) Update(dt float32) {
 	//...
 }
 
-type RenderingSystem struct {
+// ...
+type SpriteSystem struct {
 	BaseSystem
 }
 
-func (s *RenderingSystem) Update(dt float32) {
-	s.Draw()
-}
-
-func (s *RenderingSystem) Draw() {
+func (s *SpriteSystem) Update(dt float32) {
 	archetypes := s.World.Query(positionID, spriteID)
 	for archIdx := range archetypes {
 		entities := archetypes[archIdx].Entities
 		position := archetypes[archIdx].Components[positionID].([]Position)
 		sprite := archetypes[archIdx].Components[spriteID].([]Sprite)
 
-		for entIdx := range entities {
-			entityID := entities[entIdx]
-			log.Printf("(-)Drawing Entity: %d\n", entityID)
-			sprite[entityID].Draw(position[entityID].X, position[entityID].Y)
+		for idx := range entities {
+			// WARN: IM not sure it is necessary to deal with entIdx, i believe that id is important if you want to
+			// deal with an exact entitie, but in our case, we want to update everything
+			// So i belive this could be substituted by a plain range
+			// entityID := entities[entIdx]
+			// log.Printf("(-)Drawing Entity: %d\n", entityID)
+			// sprite[entityID].Draw(position[entityID].X, position[entityID].Y)
+			log.Printf("(-)Drawing Entity: %d\n", idx)
+			sprite[idx].Draw(position[idx].X, position[idx].Y)
+		}
+	}
+}
+
+type AnimationSystem struct {
+	BaseSystem
+}
+
+func (s *AnimationSystem) Update(dt float32) {
+	archetypes := s.World.Query(positionID, animationID)
+	for archIdx := range archetypes {
+		entities := archetypes[archIdx].Entities
+		position := archetypes[archIdx].Components[positionID].([]Position)
+		animation := archetypes[archIdx].Components[animationID].([]Animation)
+
+		for idx := range entities {
+			log.Printf("%d, %p, %v\n", idx, &animation[idx], animation[idx])
+			animation[idx].Duration_left -= dt
+			animation[idx].Draw(position[idx].X, position[idx].Y)
 		}
 	}
 }

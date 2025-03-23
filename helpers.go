@@ -27,6 +27,8 @@ func GetComponentFromID(id ComponentID) any {
 		return make([]Health, 0)
 	case aliveID:
 		return make([]Alive, 0)
+	case animationID:
+		return make([]Animation, 0)
 	default:
 		return nil
 	}
