@@ -17,6 +17,8 @@ const (
 	healthID
 	aliveID
 	animationID
+	playerControlledID
+	IAControlledID
 )
 
 const (
@@ -70,6 +72,10 @@ func (c *Movement) Type() ComponentID {
 	return movementID
 }
 
+func (c *Movement) Update(dt float32) {
+
+}
+
 // +++++++++++
 type Health struct {
 	Max     int32
@@ -120,7 +126,6 @@ type Animation struct {
 }
 
 func (c *Animation) Draw(x, y float32) {
-	log.Println("DRAWING")
 	if c.Duration_left <= 0 {
 		c.Duration_left = c.Speed
 		c.Current++
@@ -156,6 +161,46 @@ func (c *Animation) AnimationFrame(numFramesPerRow, sizeTile, xPad, yPad, xOffse
 	}
 }
 
+// TODO:Booth of this could be a struct with a state, but for now lets leave it like this.
+// +++++++++++
+type PlayerControlled struct{}
+
+func (c *PlayerControlled) Type() ComponentID {
+	return playerControlledID
+}
+
+// +++++++++++
+type IAControlled struct{}
+
+func (c *IAControlled) Type() ComponentID {
+	return IAControlledID
+}
+
+/*
+// +++++++++++
+type inputReaction uint8
+
+// WARN: Add here extra behaviors for input
+const (
+	Player inputReaction = iota
+)
+
+type Listen struct {
+	Behavior inputReaction
+}
+
+func (c *Listen) Type() ComponentID {
+	return listenID
+}
+
+func (c *Listen)Update(dt float32){
+  switch c.Behavior{
+  case Player:
+
+  }
+}
+*/
+
 // ===ARCHETYPE===
 type Archetype struct {
 	Mask          ComponentID
@@ -172,7 +217,7 @@ func NewArchetype(componentsID ...ComponentID) *Archetype {
 		EntityToIndex: make(map[Entity]int),
 	}
 	for _, currComp := range componentsID {
-		archetype.Components[currComp] = GetComponentFromID(currComp)
+		archetype.Components[currComp] = GetArrayComponentsFromID(currComp)
 	}
 	log.Printf("(-)COMPONENTS: %v \n", archetype.Components)
 	return archetype
@@ -184,7 +229,7 @@ func (a *Archetype) AddEntity(entity Entity, components map[ComponentID]any) (id
 	// INFO: Maybe better use commented line instead of append()
 	//	    a.Entities[idx] = entity
 	a.Entities = append(a.Entities, entity)
-
+	log.Println("Entity added")
 	for k, v := range components {
 		switch k {
 
@@ -192,21 +237,35 @@ func (a *Archetype) AddEntity(entity Entity, components map[ComponentID]any) (id
 		case positionID:
 			positions := a.Components[k].([]Position)
 			a.Components[k] = append(positions, v.(Position))
+			log.Println("Component added")
 		case spriteID:
 			sprites := a.Components[k].([]Sprite)
 			a.Components[k] = append(sprites, v.(Sprite))
+			log.Println("Component added")
 		case movementID:
 			movements := a.Components[k].([]Movement)
 			a.Components[k] = append(movements, v.(Movement))
+			log.Println("Component added")
 		case healthID:
 			health := a.Components[k].([]Health)
 			a.Components[k] = append(health, v.(Health))
+			log.Println("Component added")
 		case aliveID:
 			alives := a.Components[k].([]Alive)
 			a.Components[k] = append(alives, v.(Alive))
+			log.Println("Component added")
 		case animationID:
 			animations := a.Components[k].([]Animation)
 			a.Components[k] = append(animations, v.(Animation))
+			log.Println("Component added")
+		case playerControlledID:
+			pjControlled := a.Components[k].([]PlayerControlled)
+			a.Components[k] = append(pjControlled, v.(PlayerControlled))
+			log.Println("Component added")
+		case IAControlledID:
+			iaControlled := a.Components[k].([]IAControlled)
+			a.Components[k] = append(iaControlled, v.(IAControlled))
+			log.Println("Component added")
 		default:
 			continue
 		}
@@ -223,8 +282,6 @@ func (a *Archetype) RemoveEntity(entity Entity) {
 
 	lastIdx := len(a.Entities) - 1
 
-	// Si no es la ultima, cogemos la ultima entidad y la swapeamos con la que
-	// queremos eliminar.
 	if idx != lastIdx {
 		lastEntity := a.Entities[lastIdx]
 		a.Entities[idx] = lastEntity
@@ -253,6 +310,14 @@ func (a *Archetype) RemoveEntity(entity Entity) {
 				components := v.([]Alive)
 				components[idx] = components[lastIdx]
 				a.Components[k] = components[:lastIdx]
+			case playerControlledID:
+				components := v.([]PlayerControlled)
+				components[idx] = components[lastIdx]
+				a.Components[k] = components[:lastIdx]
+			case IAControlledID:
+				components := v.([]IAControlled)
+				components[idx] = components[lastIdx]
+				a.Components[k] = components[:lastIdx]
 			default:
 				continue
 			}
@@ -277,9 +342,14 @@ func (a *Archetype) RemoveEntity(entity Entity) {
 			case aliveID:
 				components := v.([]Alive)
 				a.Components[k] = components[:lastIdx]
-
 			case animationID:
 				components := v.([]Animation)
+				a.Components[k] = components[:lastIdx]
+			case playerControlledID:
+				components := v.([]PlayerControlled)
+				a.Components[k] = components[:lastIdx]
+			case IAControlledID:
+				components := v.([]IAControlled)
 				a.Components[k] = components[:lastIdx]
 			default:
 				continue
@@ -321,10 +391,10 @@ func (w *World) CreateEntity(components map[ComponentID]any) (entity Entity) {
 	// Build archetype if not exists
 	archetype, exists := w.archetypes[mask]
 	if !exists {
+		log.Println("Archetype Created")
 		newArchetype := NewArchetype(compList...)
 		w.archetypes[mask] = newArchetype
 		archetype = newArchetype
-
 	}
 
 	w.entityMask[entity] = mask
@@ -360,6 +430,12 @@ func (w *World) AddComponent(entity Entity, components map[ComponentID]any) {
 			components[k] = component
 		case aliveID:
 			component := v.([]Alive)[idx]
+			components[k] = component
+		case playerControlledID:
+			component := v.([]PlayerControlled)[idx]
+			components[k] = component
+		case IAControlledID:
+			component := v.([]IAControlled)[idx]
 			components[k] = component
 		default:
 			continue
@@ -401,10 +477,16 @@ func (w *World) RemoveComponent(entity Entity, component ComponentID) {
 		case aliveID:
 			component := v.([]Alive)[idx]
 			components[k] = component
-
 		case animationID:
 			component := v.([]Animation)[idx]
 			components[k] = component
+		case playerControlledID:
+			component := v.([]PlayerControlled)[idx]
+			components[k] = component
+		case IAControlledID:
+			component := v.([]IAControlled)[idx]
+			components[k] = component
+
 		default:
 			continue
 		}
@@ -431,14 +513,13 @@ func (w *World) RemoveEntity(entity Entity) {
 
 }
 
-// ...
 func (w *World) HasComponent(entity Entity, component ComponentID) bool {
 	mask, ok := w.entityMask[entity]
 	if !ok {
 		return false
 	}
 
-	return hasComponents(mask, component)
+	return hasComponent(mask, component)
 }
 
 func (w *World) HasComponents(entity Entity, components ...ComponentID) bool {
@@ -452,15 +533,17 @@ func (w *World) HasComponents(entity Entity, components ...ComponentID) bool {
 		componentsMask |= components[i]
 	}
 
-	return hasComponents(mask, componentsMask)
+	return hasComponent(mask, componentsMask)
 }
 
 func (w *World) Query(components ...ComponentID) []*Archetype {
 	var result []*Archetype
 	mask := GetMaskFromComponents(components...)
-
+	log.Println(components)
+	log.Println(mask)
 	for k, v := range w.archetypes {
-		if hasComponents(mask, k) {
+
+		if hasComponent(mask, k) {
 			result = append(result, v)
 		}
 	}
@@ -489,24 +572,57 @@ func NewSystem[T System](w *World, s T) *T {
 }
 
 // ===SYSTEM===
-// Los sistemas son la funcionalidad de los componentes , cada arquetipo guardara en una array componentes independientemente
-// estos componentes estaran alineados con su correspondiente entidas gracias a la array de entidades del arquetipo.
-// WARN: Cuando trabajamos con el field mask, lo lamamos componentID, pero realmente es el conjunto de varios formando una mascara, cambiar el tipo.
 
 type MovementSystem struct {
 	BaseSystem
 }
 
 func (s *MovementSystem) Update(dt float32) {
-	//...
+	archetypes := s.World.Query(positionID, movementID, playerControlledID)
+	for archIdx := range archetypes {
+		entities := archetypes[archIdx].Entities
+		mover := archetypes[archIdx].Components[movementID].([]Movement)
+
+		log.Println("On player")
+		for idx := range entities {
+			inputX, inputY := GetInput()
+			mover[idx].VelocityX = inputX * mover[idx].Speed
+			mover[idx].VelocityY = inputY * mover[idx].Speed
+		}
+	}
+
+	archetypes = s.World.Query(positionID, movementID, IAControlledID)
+	for archIdx := range archetypes {
+		log.Println("On Enemy")
+		entities := archetypes[archIdx].Entities
+		mover := archetypes[archIdx].Components[movementID].([]Movement)
+
+		for idx := range entities {
+			// TODO: Define AI Behavior
+			mover[idx].VelocityY = 1 * mover[idx].Speed
+		}
+	}
+
+	archetypes = s.World.Query(positionID, movementID)
+	for archIdx := range archetypes {
+		entities := archetypes[archIdx].Entities
+		position := archetypes[archIdx].Components[positionID].([]Position)
+		mover := archetypes[archIdx].Components[movementID].([]Movement)
+
+		for idx := range entities {
+			position[idx].X += mover[idx].VelocityX * dt
+			position[idx].Y += mover[idx].VelocityY * dt
+		}
+	}
 }
 
-// ...
-type SpriteSystem struct {
+// +++++++++++
+type DrawSystem struct {
 	BaseSystem
 }
 
-func (s *SpriteSystem) Update(dt float32) {
+func (s *DrawSystem) Update(dt float32) {
+	// Sprite
 	archetypes := s.World.Query(positionID, spriteID)
 	for archIdx := range archetypes {
 		entities := archetypes[archIdx].Entities
@@ -520,25 +636,18 @@ func (s *SpriteSystem) Update(dt float32) {
 			// entityID := entities[entIdx]
 			// log.Printf("(-)Drawing Entity: %d\n", entityID)
 			// sprite[entityID].Draw(position[entityID].X, position[entityID].Y)
-			log.Printf("(-)Drawing Entity: %d\n", idx)
 			sprite[idx].Draw(position[idx].X, position[idx].Y)
 		}
 	}
-}
 
-type AnimationSystem struct {
-	BaseSystem
-}
-
-func (s *AnimationSystem) Update(dt float32) {
-	archetypes := s.World.Query(positionID, animationID)
+	// Animation
+	archetypes = s.World.Query(positionID, animationID)
 	for archIdx := range archetypes {
 		entities := archetypes[archIdx].Entities
 		position := archetypes[archIdx].Components[positionID].([]Position)
 		animation := archetypes[archIdx].Components[animationID].([]Animation)
 
 		for idx := range entities {
-			log.Printf("%d, %p, %v\n", idx, &animation[idx], animation[idx])
 			animation[idx].Duration_left -= dt
 			animation[idx].Draw(position[idx].X, position[idx].Y)
 		}

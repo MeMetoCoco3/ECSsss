@@ -2,7 +2,7 @@
 Game created using a ECS with archetypes to define de different types of entities.
 It is written in Golang using Raylib.
 
-#### Archetypes ID
+## Archetypes ID
 The archetype ID is a uint64 object, which we will use to mask and check which kind 
 of entities we are working with. This are the values that are asigned to each component.
 - 1 = Position
@@ -10,9 +10,9 @@ of entities we are working with. This are the values that are asigned to each co
 - 4 = Movement
 - 8 = Health
 - 16 = Alive
-- 32 = AnimationType
-
-#### Systems
+- 32 = Animation
+- 64 = PlayerControlled
+## Systems
 I do not know if this is intrinsec from the ECS, but in this case, systems are isolated, so the functionality
 of each cannot depend from the other. I realized this while trying to do an animate system and a sprite system, being the first
 one just something that changes the square that is going to be changed, but for that, we need to query 3 components instead of 2.
