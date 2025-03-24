@@ -1,6 +1,8 @@
 package main
 
 import (
+	"log"
+
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
@@ -86,6 +88,7 @@ const (
 	bottomC
 	rightC
 	leftC
+	overlapC
 )
 
 func CheckRectCollision(aPos Position, aSize Collides, bPos Position, bSize Collides) collisionType {
@@ -98,43 +101,46 @@ func CheckRectCollision(aPos Position, aSize Collides, bPos Position, bSize Coll
 	bRight := bPos.X + bSize.Width
 	bLeft := bPos.X
 
-	// A Bottom collision means, the bottom of A hits the top of B.
-	// Bottom collision
+	// No collision
+	if aRight < bLeft || aLeft > bRight ||
+		aBottom < bTop || aTop > bBottom {
+		return noC
+	}
+
 	if aBottom > bTop && aTop < bTop &&
 		aRight > bLeft && aLeft < bRight {
+		log.Println("BOTTOMC")
 		return bottomC
 	}
 
-	// Top collision
 	if aTop < bBottom && aBottom > bBottom &&
 		aRight > bLeft && aLeft < bRight {
+		log.Println("TOPC")
 		return topC
 	}
 
-	// Right collision
 	if aRight > bLeft && aLeft < bLeft &&
 		aBottom > bTop && aTop < bBottom {
+		log.Println("RIGHTC")
 		return rightC
 	}
 
-	// Left collision
 	if aLeft < bRight && aRight > bRight &&
 		aBottom > bTop && aTop < bBottom {
+		log.Println("LEFTC")
 		return leftC
 	}
 
-	return noC
-	/*
-		// Additional check for full overlap
-		if aLeft <= bLeft && aRight >= bRight &&
-			aTop <= bTop && aBottom >= bBottom {
-			log.Println("A contains B")
-		}
+	// If we get here, we got full overlap
+	return overlapC
+}
 
-		if bLeft <= aLeft && bRight >= aRight &&
-			bTop <= aTop && bBottom >= aBottom {
-			log.Println("B contains A")
-		}
-	*/
+func convertToRectangle(v Collides) rl.Rectangle {
+	return rl.Rectangle{
+		X:      v.X,
+		Y:      v.Y,
+		Width:  v.Width,
+		Height: v.Height,
+	}
 
 }

@@ -16,19 +16,20 @@ func main() {
 
 	defer rl.CloseWindow()
 	rl.SetTargetFPS(60)
-
 	world := NewWorld()
 	renderSys := *NewSystem(world, &DrawSystem{})
 	movementSys := *NewSystem(world, &MovementSystem{})
-
+	collisionSys := *NewSystem(world, &CollisionSystem{})
 	player := make(map[ComponentID]any)
 	player[positionID] = Position{
-		X: SCREENWIDTH / 2,
-		Y: SCREENHEIGHT / 2,
+		X: 40,
+		Y: 40,
 	}
+
 	pjTexture := rl.LoadTexture("assets/player/fishy.png")
 	defer rl.UnloadTexture(pjTexture)
-	player[movementID] = Movement{VelocityX: 0, VelocityY: 0, Speed: 50}
+	player[movementID] = Movement{VelocityX: 0, VelocityY: 0, Speed: 500}
+	player[collidesID] = Collides{X: player[positionID].(Position).X, Y: player[positionID].(Position).Y, Width: 128, Height: 128}
 	player[playerControlledID] = PlayerControlled{}
 	player[animationID] = Animation{
 		First:         0,
@@ -51,26 +52,23 @@ func main() {
 
 	enemy1 := make(map[ComponentID]any)
 	enemy1[positionID] = Position{X: SCREENWIDTH / 2, Y: SCREENHEIGHT / 2}
-	enemy1[spriteID] = Sprite{Width: 20, Height: 20, Color: rl.Black}
+	enemy1[spriteID] = Sprite{Width: 200, Height: 200, Color: rl.Black}
 	enemy1[IAControlledID] = IAControlled{}
 	enemy1[movementID] = Movement{VelocityX: 0, VelocityY: 0, Speed: 50}
-
+	enemy1[collidesID] = Collides{Width: 200, Height: 200}
 	world.CreateEntity(player)
 	world.CreateEntity(enemy1)
 
-	for i := range world.Query(playerControlledID, movementID, positionID) {
-		log.Printf("Entity:%d\n ", i)
-	}
-
-	for i := range world.Query(IAControlledID, movementID, positionID) {
-		log.Printf("Entity:%d\n ", i)
-	}
-
 	for !rl.WindowShouldClose() {
 		dt := rl.GetFrameTime()
+
+		collisionSys.Update(dt)
+		movementSys.Update(dt)
+
+		log.Println(world.nextEntityID)
+		os.Exit(1)
 		rl.BeginDrawing()
 		rl.ClearBackground(VICOLOR)
-		movementSys.Update(dt)
 		renderSys.Update(dt)
 		rl.EndDrawing()
 	}

@@ -15,7 +15,7 @@ of entities we are working with. This are the values that are asigned to each co
 - 128 = IAControlled
 - 256 = Collides
 - 512 = Enemy
-- 1028 = Static
+~- 1028 = Static~
 
 ## Systems
 I do not know if this is intrinsec from the ECS, but in this case, systems are isolated, so the functionality

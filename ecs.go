@@ -29,6 +29,7 @@ const (
 	PAUSE State = iota
 	PLAY
 	MENU
+	DEAD
 )
 
 type Component interface {
@@ -178,6 +179,8 @@ func (c *IAControlled) Type() ComponentID { return IAControlledID }
 
 // +++++++++++
 type Collides struct {
+	X      float32
+	Y      float32
 	Width  float32
 	Height float32
 }
@@ -237,17 +240,14 @@ func NewArchetype(componentsID ...ComponentID) *Archetype {
 	for _, currComp := range componentsID {
 		archetype.Components[currComp] = GetArrayComponentsFromID(currComp)
 	}
-	log.Printf("(-)COMPONENTS: %v \n", archetype.Components)
 	return archetype
 }
 
 func (a *Archetype) AddEntity(entity Entity, components map[ComponentID]any) (idx int) {
-	log.Printf("(-)Adding entity n: %d\n", entity)
 	idx = len(a.Entities)
 	// INFO: Maybe better use commented line instead of append()
 	//	    a.Entities[idx] = entity
 	a.Entities = append(a.Entities, entity)
-	log.Println("Entity added")
 	for k, v := range components {
 		switch k {
 
@@ -255,47 +255,36 @@ func (a *Archetype) AddEntity(entity Entity, components map[ComponentID]any) (id
 		case positionID:
 			positions := a.Components[k].([]Position)
 			a.Components[k] = append(positions, v.(Position))
-			log.Println("Component added")
 		case spriteID:
 			sprites := a.Components[k].([]Sprite)
 			a.Components[k] = append(sprites, v.(Sprite))
-			log.Println("Component added")
 		case movementID:
 			movements := a.Components[k].([]Movement)
 			a.Components[k] = append(movements, v.(Movement))
-			log.Println("Component added")
 		case healthID:
 			health := a.Components[k].([]Health)
 			a.Components[k] = append(health, v.(Health))
-			log.Println("Component added")
 		case aliveID:
 			alives := a.Components[k].([]Alive)
 			a.Components[k] = append(alives, v.(Alive))
-			log.Println("Component added")
 		case animationID:
 			animations := a.Components[k].([]Animation)
 			a.Components[k] = append(animations, v.(Animation))
-			log.Println("Component added")
 		case playerControlledID:
 			pjControlled := a.Components[k].([]PlayerControlled)
 			a.Components[k] = append(pjControlled, v.(PlayerControlled))
-			log.Println("Component added")
 		case IAControlledID:
 			iaControlled := a.Components[k].([]IAControlled)
 			a.Components[k] = append(iaControlled, v.(IAControlled))
-			log.Println("Component added")
 		case collidesID:
 			collides := a.Components[k].([]Collides)
 			a.Components[k] = append(collides, v.(Collides))
-			log.Println("Component added")
 		case enemyID:
 			iaControlled := a.Components[k].([]Enemy)
 			a.Components[k] = append(iaControlled, v.(Enemy))
-			log.Println("Component added")
 		case staticID:
 			static := a.Components[k].([]Static)
 			a.Components[k] = append(static, v.(Static))
-			log.Println("Component added")
 		default:
 			continue
 		}
@@ -438,7 +427,6 @@ func (w *World) CreateEntity(components map[ComponentID]any) (entity Entity) {
 	// Build archetype if not exists
 	archetype, exists := w.archetypes[mask]
 	if !exists {
-		log.Println("Archetype Created")
 		newArchetype := NewArchetype(compList...)
 		w.archetypes[mask] = newArchetype
 		archetype = newArchetype
@@ -603,8 +591,6 @@ func (w *World) HasComponents(entity Entity, components ...ComponentID) bool {
 func (w *World) Query(components ...ComponentID) []*Archetype {
 	var result []*Archetype
 	mask := GetMaskFromComponents(components...)
-	log.Println(components)
-	log.Println(mask)
 	for k, v := range w.archetypes {
 
 		if hasComponent(mask, k) {
@@ -647,7 +633,6 @@ func (s *MovementSystem) Update(dt float32) {
 		entities := archetypes[archIdx].Entities
 		mover := archetypes[archIdx].Components[movementID].([]Movement)
 
-		log.Println("On player")
 		for idx := range entities {
 			inputX, inputY := GetInput()
 			mover[idx].VelocityX = inputX * mover[idx].Speed
@@ -657,13 +642,12 @@ func (s *MovementSystem) Update(dt float32) {
 
 	archetypes = s.World.Query(positionID, movementID, IAControlledID)
 	for archIdx := range archetypes {
-		log.Println("On Enemy")
 		entities := archetypes[archIdx].Entities
 		mover := archetypes[archIdx].Components[movementID].([]Movement)
 
 		for idx := range entities {
 			// TODO: Define AI Behavior
-			mover[idx].VelocityY = 1 * mover[idx].Speed
+			mover[idx].VelocityY = 1
 		}
 	}
 
@@ -672,10 +656,14 @@ func (s *MovementSystem) Update(dt float32) {
 		entities := archetypes[archIdx].Entities
 		position := archetypes[archIdx].Components[positionID].([]Position)
 		mover := archetypes[archIdx].Components[movementID].([]Movement)
-
+		collider, itCollides := archetypes[archIdx].Components[collidesID].([]Collides)
 		for idx := range entities {
 			position[idx].X += mover[idx].VelocityX * dt
 			position[idx].Y += mover[idx].VelocityY * dt
+			if itCollides {
+				collider[idx].X += mover[idx].VelocityX * dt
+				collider[idx].Y += mover[idx].VelocityY * dt
+			}
 		}
 	}
 }
@@ -692,14 +680,12 @@ func (s *DrawSystem) Update(dt float32) {
 		entities := archetypes[archIdx].Entities
 		position := archetypes[archIdx].Components[positionID].([]Position)
 		sprite := archetypes[archIdx].Components[spriteID].([]Sprite)
+		collider, itCollides := archetypes[archIdx].Components[collidesID].([]Collides)
 
 		for idx := range entities {
-			// WARN: IM not sure it is necessary to deal with entIdx, i believe that id is important if you want to
-			// deal with an exact entitie, but in our case, we want to update everything
-			// So i belive this could be substituted by a plain range
-			// entityID := entities[entIdx]
-			// log.Printf("(-)Drawing Entity: %d\n", entityID)
-			// sprite[entityID].Draw(position[entityID].X, position[entityID].Y)
+			if itCollides {
+				rl.DrawRectangleRec(convertToRectangle(collider[idx]), rl.Green)
+			}
 			sprite[idx].Draw(position[idx].X, position[idx].Y)
 		}
 	}
@@ -710,8 +696,12 @@ func (s *DrawSystem) Update(dt float32) {
 		entities := archetypes[archIdx].Entities
 		position := archetypes[archIdx].Components[positionID].([]Position)
 		animation := archetypes[archIdx].Components[animationID].([]Animation)
-
+		collider, itCollides := archetypes[archIdx].Components[collidesID].([]Collides)
 		for idx := range entities {
+
+			if itCollides {
+				rl.DrawRectangleRec(convertToRectangle(collider[idx]), rl.Red)
+			}
 			animation[idx].Duration_left -= dt
 			animation[idx].Draw(position[idx].X, position[idx].Y)
 		}
@@ -724,6 +714,7 @@ type CollisionSystem struct {
 }
 
 func (s *CollisionSystem) Update(dt float32) {
+	log.Println("CollisionSystem called")
 	archetypes := s.World.Query(positionID, collidesID)
 	for i := range archetypes {
 		entitiesA := archetypes[i].Entities
@@ -736,7 +727,6 @@ func (s *CollisionSystem) Update(dt float32) {
 			positionB := archetypes[j].Components[positionID].([]Position)
 			colliderB := archetypes[j].Components[collidesID].([]Collides)
 
-			movementB, isMovingB := archetypes[j].Components[movementID].([]Movement)
 			for idxA := range entitiesA {
 				for idxB := range entitiesB {
 					if archetypes[i] == archetypes[j] && idxA == idxB {
@@ -749,37 +739,29 @@ func (s *CollisionSystem) Update(dt float32) {
 						if isMovingA {
 							movementA[idxA].VelocityY = 0
 						}
-						if isMovingB {
-							movementB[idxB].VelocityY = 0
-						}
-						log.Println("Custom collision for movement objects")
+						log.Printf("Collision point = %v\n", positionA)
 					case bottomC:
 						if isMovingA {
 							movementA[idxA].VelocityY = 0
 						}
-						if isMovingB {
-							movementB[idxB].VelocityY = 0
-						}
-						log.Println("Custom collision for movement objects")
+						log.Printf("Collision point = %v\n", positionA)
 					case leftC:
 						if isMovingA {
 							movementA[idxA].VelocityX = 0
 						}
-						if isMovingB {
-							movementB[idxB].VelocityX = 0
-						}
-						log.Println("Custom collision for movement objects")
+						log.Printf("Collision point = %v\n", positionA)
 					case rightC:
 						if isMovingA {
 							movementA[idxA].VelocityX = 0
 						}
-						if isMovingB {
-							movementB[idxB].VelocityX = 0
-						}
-						log.Println("Custom collision for movement objects")
+						log.Printf("Collision point = %v\n", positionA)
+					case overlapC:
+						log.Printf("Full overlap point = %v\n", positionA)
+					default:
+						continue
+
 					}
 				}
-
 			}
 		}
 	}

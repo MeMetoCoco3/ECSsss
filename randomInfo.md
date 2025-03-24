@@ -32,3 +32,6 @@ func GetComponentFromID(id ComponentID) interface{} {
   es mucho mas complejo y complicado que hacer dos sistemas diferentes, uno para entidades
   estaticas, y otro para entidades animadas.
 
+## Epsilon
+Es la unidad de computacion mas pequena, varia entre ordenadores. En este caso he usado una variable
+epsilon para definir una distancia minuscula entre dos entidades en mi sistema de colisiones. 
