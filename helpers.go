@@ -2,7 +2,6 @@ package main
 
 import (
 	rl "github.com/gen2brain/raylib-go/raylib"
-	"log"
 )
 
 var VICOLOR = rl.Color{252, 163, 17, 255}
@@ -34,6 +33,10 @@ func GetArrayComponentsFromID(id ComponentID) any {
 		return make([]PlayerControlled, 0)
 	case IAControlledID:
 		return make([]IAControlled, 0)
+	case collidesID:
+		return make([]Collides, 0)
+	case enemyID:
+		return make([]Enemy, 0)
 	default:
 		return nil
 	}
@@ -58,7 +61,6 @@ func GetComponentsFromMask(mask ComponentID) []ComponentID {
 func hasComponent(mask, componentsMask ComponentID) bool {
 	newMask := (uint32(mask) & uint32(componentsMask))
 	result := newMask == uint32(mask)
-	log.Printf("Checking components: %v and %v results on %v\n", newMask, componentsMask, result)
 	return result
 }
 
@@ -74,4 +76,65 @@ func GetInput() (x float32, y float32) {
 		y = 1
 	}
 	return
+}
+
+type collisionType uint8
+
+const (
+	noC collisionType = iota
+	topC
+	bottomC
+	rightC
+	leftC
+)
+
+func CheckRectCollision(aPos Position, aSize Collides, bPos Position, bSize Collides) collisionType {
+	aTop := aPos.Y
+	aBottom := aPos.Y + aSize.Height
+	aRight := aPos.X + aSize.Width
+	aLeft := aPos.X
+	bTop := bPos.Y
+	bBottom := bPos.Y + bSize.Height
+	bRight := bPos.X + bSize.Width
+	bLeft := bPos.X
+
+	// A Bottom collision means, the bottom of A hits the top of B.
+	// Bottom collision
+	if aBottom > bTop && aTop < bTop &&
+		aRight > bLeft && aLeft < bRight {
+		return bottomC
+	}
+
+	// Top collision
+	if aTop < bBottom && aBottom > bBottom &&
+		aRight > bLeft && aLeft < bRight {
+		return topC
+	}
+
+	// Right collision
+	if aRight > bLeft && aLeft < bLeft &&
+		aBottom > bTop && aTop < bBottom {
+		return rightC
+	}
+
+	// Left collision
+	if aLeft < bRight && aRight > bRight &&
+		aBottom > bTop && aTop < bBottom {
+		return leftC
+	}
+
+	return noC
+	/*
+		// Additional check for full overlap
+		if aLeft <= bLeft && aRight >= bRight &&
+			aTop <= bTop && aBottom >= bBottom {
+			log.Println("A contains B")
+		}
+
+		if bLeft <= aLeft && bRight >= aRight &&
+			bTop <= aTop && bBottom >= aBottom {
+			log.Println("B contains A")
+		}
+	*/
+
 }

@@ -1,8 +1,9 @@
 package main
 
 import (
-	rl "github.com/gen2brain/raylib-go/raylib"
 	"log"
+
+	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
 // An entity is a index of a object in the whole world.
@@ -19,6 +20,9 @@ const (
 	animationID
 	playerControlledID
 	IAControlledID
+	collidesID
+	enemyID
+	staticID
 )
 
 const (
@@ -165,16 +169,30 @@ func (c *Animation) AnimationFrame(numFramesPerRow, sizeTile, xPad, yPad, xOffse
 // +++++++++++
 type PlayerControlled struct{}
 
-func (c *PlayerControlled) Type() ComponentID {
-	return playerControlledID
-}
+func (c *PlayerControlled) Type() ComponentID { return playerControlledID }
 
 // +++++++++++
 type IAControlled struct{}
 
-func (c *IAControlled) Type() ComponentID {
-	return IAControlledID
+func (c *IAControlled) Type() ComponentID { return IAControlledID }
+
+// +++++++++++
+type Collides struct {
+	Width  float32
+	Height float32
 }
+
+func (c *Collides) Type() ComponentID { return collidesID }
+
+// +++++++++++
+type Enemy struct{}
+
+func (c *Enemy) Type() ComponentID { return enemyID }
+
+// +++++++++++
+type Static struct{}
+
+func (c *Static) Type() ComponentID { return staticID }
 
 /*
 // +++++++++++
@@ -266,6 +284,18 @@ func (a *Archetype) AddEntity(entity Entity, components map[ComponentID]any) (id
 			iaControlled := a.Components[k].([]IAControlled)
 			a.Components[k] = append(iaControlled, v.(IAControlled))
 			log.Println("Component added")
+		case collidesID:
+			collides := a.Components[k].([]Collides)
+			a.Components[k] = append(collides, v.(Collides))
+			log.Println("Component added")
+		case enemyID:
+			iaControlled := a.Components[k].([]Enemy)
+			a.Components[k] = append(iaControlled, v.(Enemy))
+			log.Println("Component added")
+		case staticID:
+			static := a.Components[k].([]Static)
+			a.Components[k] = append(static, v.(Static))
+			log.Println("Component added")
 		default:
 			continue
 		}
@@ -318,6 +348,14 @@ func (a *Archetype) RemoveEntity(entity Entity) {
 				components := v.([]IAControlled)
 				components[idx] = components[lastIdx]
 				a.Components[k] = components[:lastIdx]
+			case enemyID:
+				components := v.([]Enemy)
+				components[idx] = components[lastIdx]
+				a.Components[k] = components[:lastIdx]
+			case staticID:
+				components := v.([]Static)
+				components[idx] = components[lastIdx]
+				a.Components[k] = components[:lastIdx]
 			default:
 				continue
 			}
@@ -350,6 +388,15 @@ func (a *Archetype) RemoveEntity(entity Entity) {
 				a.Components[k] = components[:lastIdx]
 			case IAControlledID:
 				components := v.([]IAControlled)
+				a.Components[k] = components[:lastIdx]
+			case collidesID:
+				components := v.([]Collides)
+				a.Components[k] = components[:lastIdx]
+			case enemyID:
+				components := v.([]Enemy)
+				a.Components[k] = components[:lastIdx]
+			case staticID:
+				components := v.([]Static)
 				a.Components[k] = components[:lastIdx]
 			default:
 				continue
@@ -437,6 +484,15 @@ func (w *World) AddComponent(entity Entity, components map[ComponentID]any) {
 		case IAControlledID:
 			component := v.([]IAControlled)[idx]
 			components[k] = component
+		case collidesID:
+			component := v.([]Collides)[idx]
+			components[k] = component
+		case enemyID:
+			component := v.([]Enemy)[idx]
+			components[k] = component
+		case staticID:
+			component := v.([]Enemy)[idx]
+			components[k] = component
 		default:
 			continue
 		}
@@ -486,7 +542,15 @@ func (w *World) RemoveComponent(entity Entity, component ComponentID) {
 		case IAControlledID:
 			component := v.([]IAControlled)[idx]
 			components[k] = component
-
+		case collidesID:
+			component := v.([]Collides)[idx]
+			components[k] = component
+		case enemyID:
+			component := v.([]Enemy)[idx]
+			components[k] = component
+		case staticID:
+			component := v.([]Static)[idx]
+			components[k] = component
 		default:
 			continue
 		}
@@ -650,6 +714,73 @@ func (s *DrawSystem) Update(dt float32) {
 		for idx := range entities {
 			animation[idx].Duration_left -= dt
 			animation[idx].Draw(position[idx].X, position[idx].Y)
+		}
+	}
+}
+
+// +++++++++++
+type CollisionSystem struct {
+	BaseSystem
+}
+
+func (s *CollisionSystem) Update(dt float32) {
+	archetypes := s.World.Query(positionID, collidesID)
+	for i := range archetypes {
+		entitiesA := archetypes[i].Entities
+		positionA := archetypes[i].Components[positionID].([]Position)
+		colliderA := archetypes[i].Components[collidesID].([]Collides)
+
+		movementA, isMovingA := archetypes[i].Components[movementID].([]Movement)
+		for j := range archetypes {
+			entitiesB := archetypes[j].Entities
+			positionB := archetypes[j].Components[positionID].([]Position)
+			colliderB := archetypes[j].Components[collidesID].([]Collides)
+
+			movementB, isMovingB := archetypes[j].Components[movementID].([]Movement)
+			for idxA := range entitiesA {
+				for idxB := range entitiesB {
+					if archetypes[i] == archetypes[j] && idxA == idxB {
+						continue
+					}
+					switch CheckRectCollision(positionA[idxA], colliderA[idxA], positionB[idxB], colliderB[idxA]) {
+					case noC:
+						continue
+					case topC:
+						if isMovingA {
+							movementA[idxA].VelocityY = 0
+						}
+						if isMovingB {
+							movementB[idxB].VelocityY = 0
+						}
+						log.Println("Custom collision for movement objects")
+					case bottomC:
+						if isMovingA {
+							movementA[idxA].VelocityY = 0
+						}
+						if isMovingB {
+							movementB[idxB].VelocityY = 0
+						}
+						log.Println("Custom collision for movement objects")
+					case leftC:
+						if isMovingA {
+							movementA[idxA].VelocityX = 0
+						}
+						if isMovingB {
+							movementB[idxB].VelocityX = 0
+						}
+						log.Println("Custom collision for movement objects")
+					case rightC:
+						if isMovingA {
+							movementA[idxA].VelocityX = 0
+						}
+						if isMovingB {
+							movementB[idxB].VelocityX = 0
+						}
+						log.Println("Custom collision for movement objects")
+					}
+				}
+
+			}
 		}
 	}
 }
