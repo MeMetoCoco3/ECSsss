@@ -116,7 +116,7 @@ func CheckRectCollision(aPos Position, aSize Collides, bPos Position, bSize Coll
 	relativePosition := rl.Vector2{X: centerA.X - centerB.X, Y: centerA.Y - centerB.Y}
 	if aBottom >= bTop && aTop <= bTop &&
 		aRight > bLeft && aLeft < bRight {
-		if abs(relativePosition.X) > abs(relativePosition.Y) {
+		if abs(relativePosition.X)/bSize.Width > abs(relativePosition.Y)/bSize.Height {
 			if relativePosition.X > 0 {
 				return rightC
 			}
@@ -127,7 +127,8 @@ func CheckRectCollision(aPos Position, aSize Collides, bPos Position, bSize Coll
 
 	if aTop <= bBottom && aBottom >= bBottom &&
 		aRight > bLeft && aLeft < bRight {
-		if abs(relativePosition.X) > abs(relativePosition.Y) {
+
+		if abs(relativePosition.X)/bSize.Width > abs(relativePosition.Y)/bSize.Height {
 			if relativePosition.X > 0 {
 				return rightC
 			}
@@ -139,7 +140,8 @@ func CheckRectCollision(aPos Position, aSize Collides, bPos Position, bSize Coll
 
 	if aRight >= bLeft && aLeft <= bLeft &&
 		aBottom > bTop && aTop < bBottom {
-		if abs(relativePosition.X) > abs(relativePosition.Y) {
+
+		if abs(relativePosition.X)/bSize.Width > abs(relativePosition.Y)/bSize.Height {
 			if relativePosition.X > 0 {
 				return rightC
 			}
@@ -150,7 +152,8 @@ func CheckRectCollision(aPos Position, aSize Collides, bPos Position, bSize Coll
 
 	if aLeft <= bRight && aRight >= bRight &&
 		aBottom > bTop && aTop < bBottom {
-		if abs(relativePosition.X) > abs(relativePosition.Y) {
+
+		if abs(relativePosition.X)/bSize.Width > abs(relativePosition.Y)/bSize.Height {
 			if relativePosition.X > 0 {
 				return rightC
 			}

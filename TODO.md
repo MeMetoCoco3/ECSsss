@@ -2,6 +2,7 @@
 - [x] Think about static component, maybe i can just asume that if it collides and it does not move,
   it is static.
 - [x] Investigate about tag components(maybe i can treat them different because they dont carry)
+- [x] Make collision system
 - [ ] Refactor Masks
   state)
 - [ ] Create component that carries state in a bitmas.
