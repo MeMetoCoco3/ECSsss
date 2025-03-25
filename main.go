@@ -50,23 +50,34 @@ func main() {
 		},
 	}
 
-	enemy1 := make(map[ComponentID]any)
-	enemy1[positionID] = Position{X: SCREENWIDTH / 2, Y: SCREENHEIGHT / 2}
-	enemy1[spriteID] = Sprite{Width: 200, Height: 200, Color: rl.Black}
-	enemy1[IAControlledID] = IAControlled{}
-	enemy1[movementID] = Movement{VelocityX: 0, VelocityY: 0, Speed: 50}
-	enemy1[collidesID] = Collides{Width: 200, Height: 200}
+	border1 := make(map[ComponentID]any)
+	border2 := make(map[ComponentID]any)
+	border3 := make(map[ComponentID]any)
+	border4 := make(map[ComponentID]any)
+	border1[positionID] = Position{X: 0, Y: 0}
+	border1[spriteID] = Sprite{Width: SCREENWIDTH, Height: 20, Color: rl.Red}
+	border1[collidesID] = Collides{Width: SCREENWIDTH, Height: 20}
+	border2[positionID] = Position{X: SCREENWIDTH - 20, Y: 0}
+	border2[spriteID] = Sprite{Width: 20, Height: SCREENHEIGHT, Color: rl.Red}
+	border2[collidesID] = Collides{Width: 20, Height: SCREENHEIGHT}
+	border3[positionID] = Position{X: 0, Y: 0}
+	border3[spriteID] = Sprite{Width: 20, Height: SCREENHEIGHT, Color: rl.Red}
+	border3[collidesID] = Collides{Width: 20, Height: SCREENHEIGHT}
+	border4[positionID] = Position{X: 0, Y: SCREENHEIGHT - 20}
+	border4[spriteID] = Sprite{Width: SCREENWIDTH, Height: 20, Color: rl.Red}
+	border4[collidesID] = Collides{Width: SCREENWIDTH, Height: 20}
 	world.CreateEntity(player)
-	world.CreateEntity(enemy1)
+	world.CreateEntity(border1)
+	world.CreateEntity(border2)
+	world.CreateEntity(border3)
+	world.CreateEntity(border4)
 
 	for !rl.WindowShouldClose() {
 		dt := rl.GetFrameTime()
 
-		collisionSys.Update(dt)
 		movementSys.Update(dt)
-
+		collisionSys.Update(dt)
 		log.Println(world.nextEntityID)
-		os.Exit(1)
 		rl.BeginDrawing()
 		rl.ClearBackground(VICOLOR)
 		renderSys.Update(dt)

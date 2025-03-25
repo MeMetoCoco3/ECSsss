@@ -6,7 +6,6 @@ import (
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
-// An entity is a index of a object in the whole world.
 type Entity uint32
 type ComponentID uint32
 type State uint32
@@ -22,7 +21,6 @@ const (
 	IAControlledID
 	collidesID
 	enemyID
-	staticID
 )
 
 const (
@@ -30,6 +28,10 @@ const (
 	PLAY
 	MENU
 	DEAD
+)
+
+const (
+	GRAVITY = 280
 )
 
 type Component interface {
@@ -192,11 +194,6 @@ type Enemy struct{}
 
 func (c *Enemy) Type() ComponentID { return enemyID }
 
-// +++++++++++
-type Static struct{}
-
-func (c *Static) Type() ComponentID { return staticID }
-
 /*
 // +++++++++++
 type inputReaction uint8
@@ -282,9 +279,6 @@ func (a *Archetype) AddEntity(entity Entity, components map[ComponentID]any) (id
 		case enemyID:
 			iaControlled := a.Components[k].([]Enemy)
 			a.Components[k] = append(iaControlled, v.(Enemy))
-		case staticID:
-			static := a.Components[k].([]Static)
-			a.Components[k] = append(static, v.(Static))
 		default:
 			continue
 		}
@@ -341,10 +335,6 @@ func (a *Archetype) RemoveEntity(entity Entity) {
 				components := v.([]Enemy)
 				components[idx] = components[lastIdx]
 				a.Components[k] = components[:lastIdx]
-			case staticID:
-				components := v.([]Static)
-				components[idx] = components[lastIdx]
-				a.Components[k] = components[:lastIdx]
 			default:
 				continue
 			}
@@ -383,9 +373,6 @@ func (a *Archetype) RemoveEntity(entity Entity) {
 				a.Components[k] = components[:lastIdx]
 			case enemyID:
 				components := v.([]Enemy)
-				a.Components[k] = components[:lastIdx]
-			case staticID:
-				components := v.([]Static)
 				a.Components[k] = components[:lastIdx]
 			default:
 				continue
@@ -478,9 +465,6 @@ func (w *World) AddComponent(entity Entity, components map[ComponentID]any) {
 		case enemyID:
 			component := v.([]Enemy)[idx]
 			components[k] = component
-		case staticID:
-			component := v.([]Enemy)[idx]
-			components[k] = component
 		default:
 			continue
 		}
@@ -535,9 +519,6 @@ func (w *World) RemoveComponent(entity Entity, component ComponentID) {
 			components[k] = component
 		case enemyID:
 			component := v.([]Enemy)[idx]
-			components[k] = component
-		case staticID:
-			component := v.([]Static)[idx]
 			components[k] = component
 		default:
 			continue
@@ -636,7 +617,7 @@ func (s *MovementSystem) Update(dt float32) {
 		for idx := range entities {
 			inputX, inputY := GetInput()
 			mover[idx].VelocityX = inputX * mover[idx].Speed
-			mover[idx].VelocityY = inputY * mover[idx].Speed
+			mover[idx].VelocityY = inputY*mover[idx].Speed + GRAVITY
 		}
 	}
 
@@ -647,7 +628,7 @@ func (s *MovementSystem) Update(dt float32) {
 
 		for idx := range entities {
 			// TODO: Define AI Behavior
-			mover[idx].VelocityY = 1
+			mover[idx].VelocityY = GRAVITY
 		}
 	}
 
@@ -721,7 +702,7 @@ func (s *CollisionSystem) Update(dt float32) {
 		positionA := archetypes[i].Components[positionID].([]Position)
 		colliderA := archetypes[i].Components[collidesID].([]Collides)
 
-		movementA, isMovingA := archetypes[i].Components[movementID].([]Movement)
+		_, isMovingA := archetypes[i].Components[movementID].([]Movement)
 		for j := range archetypes {
 			entitiesB := archetypes[j].Entities
 			positionB := archetypes[j].Components[positionID].([]Position)
@@ -732,29 +713,33 @@ func (s *CollisionSystem) Update(dt float32) {
 					if archetypes[i] == archetypes[j] && idxA == idxB {
 						continue
 					}
-					switch CheckRectCollision(positionA[idxA], colliderA[idxA], positionB[idxB], colliderB[idxA]) {
+					switch CheckRectCollision(positionA[idxA], colliderA[idxA], positionB[idxB], colliderB[idxB]) {
 					case noC:
 						continue
 					case topC:
 						if isMovingA {
-							movementA[idxA].VelocityY = 0
+							log.Println("TOP")
+							positionA[idxA].Y = positionB[idxB].Y - colliderA[idxA].Height
+							colliderA[idxA].Y = positionB[idxB].Y - colliderA[idxA].Height
 						}
-						log.Printf("Collision point = %v\n", positionA)
 					case bottomC:
 						if isMovingA {
-							movementA[idxA].VelocityY = 0
+							log.Println("Bottom")
+							positionA[idxA].Y = positionB[idxB].Y + colliderB[idxB].Height
+							colliderA[idxA].Y = positionB[idxB].Y + colliderB[idxB].Height
 						}
-						log.Printf("Collision point = %v\n", positionA)
 					case leftC:
 						if isMovingA {
-							movementA[idxA].VelocityX = 0
+							log.Println("Left")
+							positionA[idxA].X = positionB[idxB].X - colliderA[idxA].Width
+							colliderA[idxA].X = positionB[idxB].X - colliderA[idxA].Width
 						}
-						log.Printf("Collision point = %v\n", positionA)
 					case rightC:
 						if isMovingA {
-							movementA[idxA].VelocityX = 0
+							log.Println("Right")
+							positionA[idxA].X = positionB[idxB].X + colliderB[idxB].Width
+							colliderA[idxA].X = positionB[idxB].X + colliderB[idxB].Width
 						}
-						log.Printf("Collision point = %v\n", positionA)
 					case overlapC:
 						log.Printf("Full overlap point = %v\n", positionA)
 					default:

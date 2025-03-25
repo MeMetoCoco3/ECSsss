@@ -1,8 +1,6 @@
 package main
 
 import (
-	"log"
-
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
@@ -96,6 +94,7 @@ func CheckRectCollision(aPos Position, aSize Collides, bPos Position, bSize Coll
 	aBottom := aPos.Y + aSize.Height
 	aRight := aPos.X + aSize.Width
 	aLeft := aPos.X
+
 	bTop := bPos.Y
 	bBottom := bPos.Y + bSize.Height
 	bRight := bPos.X + bSize.Width
@@ -107,28 +106,24 @@ func CheckRectCollision(aPos Position, aSize Collides, bPos Position, bSize Coll
 		return noC
 	}
 
-	if aBottom > bTop && aTop < bTop &&
+	if aBottom >= bTop && aTop <= bTop &&
 		aRight > bLeft && aLeft < bRight {
-		log.Println("BOTTOMC")
-		return bottomC
-	}
-
-	if aTop < bBottom && aBottom > bBottom &&
-		aRight > bLeft && aLeft < bRight {
-		log.Println("TOPC")
 		return topC
 	}
 
-	if aRight > bLeft && aLeft < bLeft &&
-		aBottom > bTop && aTop < bBottom {
-		log.Println("RIGHTC")
-		return rightC
+	if aTop <= bBottom && aBottom >= bBottom &&
+		aRight > bLeft && aLeft < bRight {
+		return bottomC
 	}
 
-	if aLeft < bRight && aRight > bRight &&
+	if aRight >= bLeft && aLeft <= bLeft &&
 		aBottom > bTop && aTop < bBottom {
-		log.Println("LEFTC")
 		return leftC
+	}
+
+	if aLeft <= bRight && aRight >= bRight &&
+		aBottom > bTop && aTop < bBottom {
+		return rightC
 	}
 
 	// If we get here, we got full overlap
