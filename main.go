@@ -49,29 +49,33 @@ func main() {
 			Color:   rl.White,
 		},
 	}
-
-	border1 := make(map[ComponentID]any)
-	border2 := make(map[ComponentID]any)
-	border3 := make(map[ComponentID]any)
-	border4 := make(map[ComponentID]any)
-	border1[positionID] = Position{X: 0, Y: 0}
-	border1[spriteID] = Sprite{Width: SCREENWIDTH, Height: 20, Color: rl.Red}
-	border1[collidesID] = Collides{Width: SCREENWIDTH, Height: 20}
-	border2[positionID] = Position{X: SCREENWIDTH - 20, Y: 0}
-	border2[spriteID] = Sprite{Width: 20, Height: SCREENHEIGHT, Color: rl.Red}
-	border2[collidesID] = Collides{Width: 20, Height: SCREENHEIGHT}
-	border3[positionID] = Position{X: 0, Y: 0}
-	border3[spriteID] = Sprite{Width: 20, Height: SCREENHEIGHT, Color: rl.Red}
-	border3[collidesID] = Collides{Width: 20, Height: SCREENHEIGHT}
-	border4[positionID] = Position{X: 0, Y: SCREENHEIGHT - 20}
-	border4[spriteID] = Sprite{Width: SCREENWIDTH, Height: 20, Color: rl.Red}
-	border4[collidesID] = Collides{Width: SCREENWIDTH, Height: 20}
+	squareCenter := make(map[ComponentID]any)
+	squareCenter[positionID] = Position{X: SCREENWIDTH / 2, Y: SCREENHEIGHT / 2}
+	squareCenter[spriteID] = Sprite{Width: 60, Height: 60, Color: rl.Red}
+	squareCenter[collidesID] = Collides{X: SCREENWIDTH / 2, Y: SCREENHEIGHT / 2, Width: 60, Height: 60}
+	// border1 := make(map[ComponentID]any)
+	// border2 := make(map[ComponentID]any)
+	// border3 := make(map[ComponentID]any)
+	// border4 := make(map[ComponentID]any)
+	// border1[positionID] = Position{X: 0, Y: 0}
+	// border1[spriteID] = Sprite{Width: SCREENWIDTH, Height: 20, Color: rl.Red}
+	// border1[collidesID] = Collides{Width: SCREENWIDTH, Height: 20}
+	// border2[positionID] = Position{X: SCREENWIDTH - 20, Y: 0}
+	// border2[spriteID] = Sprite{Width: 20, Height: SCREENHEIGHT, Color: rl.Red}
+	// border2[collidesID] = Collides{Width: 20, Height: SCREENHEIGHT}
+	// border3[positionID] = Position{X: 0, Y: 0}
+	// border3[spriteID] = Sprite{Width: 20, Height: SCREENHEIGHT, Color: rl.Red}
+	// border3[collidesID] = Collides{Width: 20, Height: SCREENHEIGHT}
+	// border4[positionID] = Position{X: 0, Y: SCREENHEIGHT - 20}
+	// border4[spriteID] = Sprite{Width: SCREENWIDTH, Height: 20, Color: rl.Red}
+	// border4[collidesID] = Collides{Width: SCREENWIDTH, Height: 20}
 	world.CreateEntity(player)
-	world.CreateEntity(border1)
-	world.CreateEntity(border2)
-	world.CreateEntity(border3)
-	world.CreateEntity(border4)
-
+	world.CreateEntity(squareCenter)
+	// world.CreateEntity(border1)
+	// world.CreateEntity(border2)
+	// world.CreateEntity(border3)
+	// world.CreateEntity(border4)
+	//
 	for !rl.WindowShouldClose() {
 		dt := rl.GetFrameTime()
 

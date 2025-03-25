@@ -2,9 +2,14 @@ package main
 
 import (
 	rl "github.com/gen2brain/raylib-go/raylib"
+	"golang.org/x/exp/constraints"
 )
 
 var VICOLOR = rl.Color{252, 163, 17, 255}
+
+type Number interface {
+	constraints.Integer | constraints.Float
+}
 
 func GetMaskFromComponents(componentsID ...ComponentID) ComponentID {
 	var mask ComponentID
@@ -99,6 +104,8 @@ func CheckRectCollision(aPos Position, aSize Collides, bPos Position, bSize Coll
 	bBottom := bPos.Y + bSize.Height
 	bRight := bPos.X + bSize.Width
 	bLeft := bPos.X
+	centerA := rl.Vector2{X: aPos.X + aSize.Width/2, Y: aPos.Y + aSize.Height/2}
+	centerB := rl.Vector2{X: bPos.X + bSize.Width/2, Y: bPos.Y + bSize.Height/2}
 
 	// No collision
 	if aRight < bLeft || aLeft > bRight ||
@@ -106,26 +113,51 @@ func CheckRectCollision(aPos Position, aSize Collides, bPos Position, bSize Coll
 		return noC
 	}
 
+	relativePosition := rl.Vector2{X: centerA.X - centerB.X, Y: centerA.Y - centerB.Y}
 	if aBottom >= bTop && aTop <= bTop &&
 		aRight > bLeft && aLeft < bRight {
+		if abs(relativePosition.X) > abs(relativePosition.Y) {
+			if relativePosition.X > 0 {
+				return rightC
+			}
+			return leftC
+		}
 		return topC
 	}
 
 	if aTop <= bBottom && aBottom >= bBottom &&
 		aRight > bLeft && aLeft < bRight {
+		if abs(relativePosition.X) > abs(relativePosition.Y) {
+			if relativePosition.X > 0 {
+				return rightC
+			}
+			return leftC
+		}
+
 		return bottomC
 	}
 
 	if aRight >= bLeft && aLeft <= bLeft &&
 		aBottom > bTop && aTop < bBottom {
-		return leftC
+		if abs(relativePosition.X) > abs(relativePosition.Y) {
+			if relativePosition.X > 0 {
+				return rightC
+			}
+			return leftC
+		}
+		return bottomC
 	}
 
 	if aLeft <= bRight && aRight >= bRight &&
 		aBottom > bTop && aTop < bBottom {
-		return rightC
+		if abs(relativePosition.X) > abs(relativePosition.Y) {
+			if relativePosition.X > 0 {
+				return rightC
+			}
+			return leftC
+		}
+		return bottomC
 	}
-
 	// If we get here, we got full overlap
 	return overlapC
 }
@@ -138,4 +170,18 @@ func convertToRectangle(v Collides) rl.Rectangle {
 		Height: v.Height,
 	}
 
+}
+
+func abs[T Number](a T) T {
+	var v T
+	if a < v {
+		return -a
+	}
+	return a
+}
+func min[T Number](a, b T) T {
+	if a < b {
+		return a
+	}
+	return b
 }
