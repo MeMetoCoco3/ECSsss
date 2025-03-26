@@ -31,7 +31,9 @@ const (
 )
 
 const (
-	GRAVITY = 280
+	GRAVITY        = 980
+	JUMPFORCE      = 500
+	MOVEMENT_SPEED = 2
 )
 
 type Component interface {
@@ -73,14 +75,11 @@ type Movement struct {
 	VelocityX float32
 	VelocityY float32
 	Speed     float32
+	Grounded  bool
 }
 
 func (c *Movement) Type() ComponentID {
 	return movementID
-}
-
-func (c *Movement) Update(dt float32) {
-
 }
 
 // +++++++++++
@@ -168,7 +167,6 @@ func (c *Animation) AnimationFrame(numFramesPerRow, sizeTile, xPad, yPad, xOffse
 	}
 }
 
-// TODO:Booth of this could be a struct with a state, but for now lets leave it like this.
 // +++++++++++
 type PlayerControlled struct{}
 
@@ -613,11 +611,8 @@ func (s *MovementSystem) Update(dt float32) {
 	for archIdx := range archetypes {
 		entities := archetypes[archIdx].Entities
 		mover := archetypes[archIdx].Components[movementID].([]Movement)
-
 		for idx := range entities {
-			inputX, inputY := GetInput()
-			mover[idx].VelocityX = inputX * mover[idx].Speed
-			mover[idx].VelocityY = inputY*mover[idx].Speed + GRAVITY
+			mover[idx] = GetInput(mover[idx], dt)
 		}
 	}
 
@@ -630,6 +625,7 @@ func (s *MovementSystem) Update(dt float32) {
 			// TODO: Define AI Behavior
 			mover[idx].VelocityY = GRAVITY
 		}
+
 	}
 
 	archetypes = s.World.Query(positionID, movementID)
@@ -639,11 +635,11 @@ func (s *MovementSystem) Update(dt float32) {
 		mover := archetypes[archIdx].Components[movementID].([]Movement)
 		collider, itCollides := archetypes[archIdx].Components[collidesID].([]Collides)
 		for idx := range entities {
-			position[idx].X += mover[idx].VelocityX * dt
-			position[idx].Y += mover[idx].VelocityY * dt
+			position[idx].X += mover[idx].VelocityX * MOVEMENT_SPEED * dt
+			position[idx].Y += mover[idx].VelocityY * MOVEMENT_SPEED * dt
 			if itCollides {
-				collider[idx].X += mover[idx].VelocityX * dt
-				collider[idx].Y += mover[idx].VelocityY * dt
+				collider[idx].X = position[idx].X
+				collider[idx].Y = position[idx].Y
 			}
 		}
 	}
@@ -702,7 +698,7 @@ func (s *CollisionSystem) Update(dt float32) {
 		positionA := archetypes[i].Components[positionID].([]Position)
 		colliderA := archetypes[i].Components[collidesID].([]Collides)
 
-		_, isMovingA := archetypes[i].Components[movementID].([]Movement)
+		mover, isMovingA := archetypes[i].Components[movementID].([]Movement)
 		for j := range archetypes {
 			entitiesB := archetypes[j].Entities
 			positionB := archetypes[j].Components[positionID].([]Position)
@@ -718,15 +714,16 @@ func (s *CollisionSystem) Update(dt float32) {
 						continue
 					case topC:
 						if isMovingA {
-							log.Println("TOP")
+							log.Println("Bottom")
 							positionA[idxA].Y = positionB[idxB].Y - colliderA[idxA].Height
 							colliderA[idxA].Y = positionB[idxB].Y - colliderA[idxA].Height
+							mover[idxA].Grounded = true
 						}
 					case bottomC:
 						if isMovingA {
-							log.Println("Bottom")
 							positionA[idxA].Y = positionB[idxB].Y + colliderB[idxB].Height
 							colliderA[idxA].Y = positionB[idxB].Y + colliderB[idxB].Height
+
 						}
 					case leftC:
 						if isMovingA {

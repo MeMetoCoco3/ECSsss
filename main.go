@@ -1,9 +1,10 @@
 package main
 
 import (
-	rl "github.com/gen2brain/raylib-go/raylib"
 	"log"
 	"os"
+
+	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
 const (
@@ -28,7 +29,7 @@ func main() {
 		X: 200,
 		Y: 200,
 	}
-	player[movementID] = Movement{VelocityX: 0, VelocityY: 0, Speed: 500}
+	player[movementID] = Movement{VelocityX: 0, VelocityY: 0, Speed: 500, Grounded: true}
 	player[collidesID] = Collides{X: player[positionID].(Position).X, Y: player[positionID].(Position).Y, Width: 128, Height: 128}
 	player[playerControlledID] = PlayerControlled{}
 	player[animationID] = Animation{
@@ -49,10 +50,10 @@ func main() {
 			Color:   rl.White,
 		},
 	}
-	squareCenter := make(map[ComponentID]any)
-	squareCenter[positionID] = Position{X: SCREENWIDTH / 2, Y: SCREENHEIGHT / 2}
-	squareCenter[spriteID] = Sprite{Width: 200, Height: 200, Color: rl.Red}
-	squareCenter[collidesID] = Collides{X: SCREENWIDTH / 2, Y: SCREENHEIGHT / 2, Width: 200, Height: 200}
+	// squareCenter := make(map[ComponentID]any)
+	// squareCenter[positionID] = Position{X: SCREENWIDTH / 2, Y: SCREENHEIGHT / 2}
+	// squareCenter[spriteID] = Sprite{Width: 200, Height: 200, Color: rl.Red}
+	// squareCenter[collidesID] = Collides{X: SCREENWIDTH / 2, Y: SCREENHEIGHT / 2, Width: 200, Height: 200}
 	border1 := make(map[ComponentID]any)
 	border2 := make(map[ComponentID]any)
 	border3 := make(map[ComponentID]any)
@@ -70,7 +71,7 @@ func main() {
 	border4[spriteID] = Sprite{Width: SCREENWIDTH, Height: 100, Color: rl.Red}
 	border4[collidesID] = Collides{X: 0, Y: SCREENHEIGHT - 20, Width: SCREENWIDTH, Height: 100}
 	world.CreateEntity(player)
-	world.CreateEntity(squareCenter)
+	// world.CreateEntity(squareCenter)
 	world.CreateEntity(border1)
 	world.CreateEntity(border2)
 	world.CreateEntity(border3)

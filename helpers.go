@@ -3,6 +3,7 @@ package main
 import (
 	rl "github.com/gen2brain/raylib-go/raylib"
 	"golang.org/x/exp/constraints"
+	"log"
 )
 
 var VICOLOR = rl.Color{252, 163, 17, 255}
@@ -69,18 +70,27 @@ func hasComponent(mask, componentsMask ComponentID) bool {
 	return result
 }
 
-func GetInput() (x float32, y float32) {
+func GetInput(c Movement, dt float32) Movement {
+	var x float32
+	var y float32
 	if rl.IsKeyDown(rl.KeyLeft) {
 		x = -1
 	} else if rl.IsKeyDown(rl.KeyRight) {
 		x = 1
 	}
-	if rl.IsKeyDown(rl.KeyUp) {
-		y = -1
-	} else if rl.IsKeyDown(rl.KeyDown) {
-		y = 1
+	if rl.IsKeyDown(rl.KeySpace) && c.Grounded {
+		log.Println("JUMP")
+		y = -JUMPFORCE
+		c.Grounded = false
 	}
-	return
+
+	c.VelocityX = x * c.Speed
+	if !c.Grounded {
+		c.VelocityY += y + (GRAVITY * dt)
+	} else {
+		c.VelocityY = 0
+	}
+	return c
 }
 
 type collisionType uint8
@@ -104,6 +114,7 @@ func CheckRectCollision(aPos Position, aSize Collides, bPos Position, bSize Coll
 	bBottom := bPos.Y + bSize.Height
 	bRight := bPos.X + bSize.Width
 	bLeft := bPos.X
+
 	centerA := rl.Vector2{X: aPos.X + aSize.Width/2, Y: aPos.Y + aSize.Height/2}
 	centerB := rl.Vector2{X: bPos.X + bSize.Width/2, Y: bPos.Y + bSize.Height/2}
 
@@ -127,20 +138,17 @@ func CheckRectCollision(aPos Position, aSize Collides, bPos Position, bSize Coll
 
 	if aTop <= bBottom && aBottom >= bBottom &&
 		aRight > bLeft && aLeft < bRight {
-
 		if abs(relativePosition.X)/bSize.Width > abs(relativePosition.Y)/bSize.Height {
 			if relativePosition.X > 0 {
 				return rightC
 			}
 			return leftC
 		}
-
 		return bottomC
 	}
 
 	if aRight >= bLeft && aLeft <= bLeft &&
 		aBottom > bTop && aTop < bBottom {
-
 		if abs(relativePosition.X)/bSize.Width > abs(relativePosition.Y)/bSize.Height {
 			if relativePosition.X > 0 {
 				return rightC
